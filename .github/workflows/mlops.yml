@@ -2,7 +2,7 @@ name: MLOps Pipeline
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
     paths:
       - 'data/**.dvc'
       - 'src/**.py'
@@ -120,6 +120,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: SSH preflight
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          VM_USER: ${{ secrets.VM_USER }}
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          envs: VM_USER
+          script: |
+            whoami
+            echo "$HOME"
+            mkdir -p "/home/$VM_USER/mlops-deploy/src" "/home/$VM_USER/mlops-deploy/deploy"
+
       - name: Copy serving assets to VM
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -127,7 +141,7 @@ jobs:
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           source: "src/serve.py,bootstrap_vm.sh,deploy/mlops-serve.service"
-          target: "~/mlops-deploy"
+          target: "/home/${{ secrets.VM_USER }}/mlops-deploy"
           strip_components: 0
 
       - name: SSH deploy to VM
@@ -142,11 +156,13 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           envs: CLOUD_BUCKET,CLOUD_CREDENTIALS,VM_USER
           script: |
-            mkdir -p ~/mlops-deploy/deploy ~/mlops-deploy/src
-            chmod +x ~/mlops-deploy/bootstrap_vm.sh
-            sed -i "s/\${CLOUD_BUCKET}/$CLOUD_BUCKET/g" ~/mlops-deploy/deploy/mlops-serve.service
-            sed -i "s/%i/$VM_USER/g" ~/mlops-deploy/deploy/mlops-serve.service
-            cd ~/mlops-deploy
+            test -f "/home/$VM_USER/mlops-deploy/bootstrap_vm.sh"
+            test -f "/home/$VM_USER/mlops-deploy/src/serve.py"
+            test -f "/home/$VM_USER/mlops-deploy/deploy/mlops-serve.service"
+            chmod +x "/home/$VM_USER/mlops-deploy/bootstrap_vm.sh"
+            sed -i "s/\${CLOUD_BUCKET}/$CLOUD_BUCKET/g" "/home/$VM_USER/mlops-deploy/deploy/mlops-serve.service"
+            sed -i "s/%i/$VM_USER/g" "/home/$VM_USER/mlops-deploy/deploy/mlops-serve.service"
+            cd "/home/$VM_USER/mlops-deploy"
             bash ./bootstrap_vm.sh
             python3 - <<PY
             import json

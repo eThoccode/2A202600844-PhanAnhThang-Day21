@@ -7,4 +7,4 @@ min_samples_leaf: 2
 max_features: null
 class_weight: balanced
 bootstrap: true
-eval_threshold: 0.68
+eval_threshold: 0.70
