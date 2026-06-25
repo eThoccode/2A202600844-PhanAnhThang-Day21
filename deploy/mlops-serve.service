@@ -1,0 +1,17 @@
+[Unit]
+Description=MLOps Model Inference Server
+After=network.target
+
+[Service]
+User=%i
+WorkingDirectory=/opt/mlops-serve
+Environment=CLOUD_BUCKET=${CLOUD_BUCKET}
+Environment=S3_MODEL_KEY=models/latest/model.pkl
+Environment=MODEL_PATH=/opt/mlops-serve/models/model.pkl
+EnvironmentFile=-/opt/mlops-serve/.env
+ExecStart=/usr/bin/python3 /opt/mlops-serve/src/serve.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
